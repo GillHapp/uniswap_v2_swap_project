@@ -1,0 +1,17 @@
+[profile.default]
+libs = ["lib"]
+out = "out"
+src = "src"
+
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts",
+  "@uniswap/v2-core/=lib/v2-core",
+]
+
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+
+[etherscan]
+sepolia = {key = "${ETHERSCAN_KEY}"}# Optional for verification
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
