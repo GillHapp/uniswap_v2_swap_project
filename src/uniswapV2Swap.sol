@@ -15,6 +15,9 @@ contract uniswapV2Swap {
     event LiquidityAdded(
         address indexed tokenA, address indexed tokenB, uint256 amountA, uint256 amountB, address indexed to
     );
+    event LiquidityRemoved(
+        address indexed tokenA, address indexed tokenB, uint256 amountA, uint256 amountB, address indexed to
+    );
 
     constructor() {
         uniswap_v2_sepolia_factory = IUniswapV2Factory(UNISWAP_V2_SEPOLIA_FACTORY);
@@ -46,8 +49,6 @@ contract uniswapV2Swap {
         uint256 deadline
     ) external returns (uint256 amountAAdded, uint256 amountBAdded, uint256 liquidity) {
         require(tokenA != address(0) && tokenB != address(0), "Invalid token address");
-        require(IERC20(tokenA).balanceOf(msg.sender) >= amountA, "Insufficient Token A balance");
-        require(IERC20(tokenB).balanceOf(msg.sender) >= amountB, "Insufficient Token B balance");
         require(
             amountA > 0 && amountB > 0 && to != address(0),
             "Amounts must be greater than zero and recipient address must be valid"
@@ -55,9 +56,6 @@ contract uniswapV2Swap {
         require(deadline > block.timestamp, "Deadline must be in the future");
         address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
         require(pair != address(0), "Pair does not exist");
-        // Transfer tokens to this contract
-        IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
-        IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
         // Approve the router to spend tokens
         IERC20(tokenA).approve(address(uniswap_v2_sepolia_router), amountA);
         IERC20(tokenB).approve(address(uniswap_v2_sepolia_router), amountB);
@@ -74,5 +72,35 @@ contract uniswapV2Swap {
         );
         emit LiquidityAdded(tokenA, tokenB, _amountAAdded, _amountBAdded, to);
         return (_amountAAdded, _amountBAdded, _liquidity);
+    }
+
+    // function to remove liquidity from the pair contract
+    function removeLiquidity(address tokenA, address tokenB, address to)
+        external
+        returns (uint256 amountA, uint256 amountB)
+    {
+        require(tokenA != address(0) && tokenB != address(0), "Invalid token address");
+        uint256 liquidity = IERC20(uniswap_v2_sepolia_factory.getPair(tokenA, tokenB)).balanceOf(msg.sender);
+        uint256 deadline = block.timestamp + 1 hours; // Set a deadline for the transaction
+        require(
+            liquidity > 0 && to != address(0), "Liquidity must be greater than zero and recipient address must be valid"
+        );
+        require(deadline > block.timestamp, "Deadline must be in the future");
+        address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
+        require(pair != address(0), "Pair does not exist");
+        // Approve the router to spend LP tokens
+        IERC20(pair).approve(address(uniswap_v2_sepolia_router), liquidity);
+        // Remove liquidity
+        (uint256 _amountA, uint256 _amountB) = uniswap_v2_sepolia_router.removeLiquidity(
+            tokenA,
+            tokenB,
+            liquidity,
+            0, // Min amount A
+            0, // Min amount B
+            to,
+            deadline
+        );
+        emit LiquidityRemoved(tokenA, tokenB, _amountA, _amountB, to);
+        return (_amountA, _amountB);
     }
 }

@@ -65,4 +65,56 @@ contract UniswapV2SwapTest is Test {
         console.log("Liquidity tokens received:", liquidity / 10 ** 18);
         console.log("Liquidity added successfully");
     }
+
+    // Test removing liquidity
+    function testRemoveLiquidity() public {
+        // Create pair and add liquidity
+        address pairAddress = uniswapV2SwapInstance.createPair(address(tokenA), address(tokenB));
+        uint256 amountA = 100 * 10 ** 18;
+        uint256 amountB = 1000 * 10 ** 18;
+        tokenA.transfer(address(uniswapV2SwapInstance), amountA);
+        tokenB.transfer(address(uniswapV2SwapInstance), amountB);
+        uint256 deadline = block.timestamp + 1 hours;
+        (,, uint256 liquidity) =
+            uniswapV2SwapInstance.addLiquidity(address(tokenA), address(tokenB), amountA, amountB, recipient, deadline);
+
+        // Transfer LP tokens from recipient to uniswapV2Swap
+        IERC20 pairContract = IERC20(pairAddress);
+        vm.prank(recipient);
+        pairContract.transfer(address(uniswapV2SwapInstance), liquidity);
+        assertEq(pairContract.balanceOf(recipient), 0, "Recipient LP balance should be zero");
+        assertEq(
+            pairContract.balanceOf(address(uniswapV2SwapInstance)), liquidity, "uniswapV2Swap should have LP tokens"
+        );
+
+        // Record initial balances
+        uint256 initialPairBalanceA = tokenA.balanceOf(pairAddress);
+        uint256 initialPairBalanceB = tokenB.balanceOf(pairAddress);
+        uint256 initialRecipientBalanceA = tokenA.balanceOf(recipient);
+        uint256 initialRecipientBalanceB = tokenB.balanceOf(recipient);
+
+        // Remove liquidity as uniswapV2Swap
+        vm.prank(address(uniswapV2SwapInstance));
+        (uint256 amountARemoved, uint256 amountBRemoved) =
+            uniswapV2SwapInstance.removeLiquidity(address(tokenA), address(tokenB), recipient);
+
+        // Check recipient received tokens
+        uint256 finalRecipientBalanceA = tokenA.balanceOf(recipient);
+        uint256 finalRecipientBalanceB = tokenB.balanceOf(recipient);
+        assertEq(finalRecipientBalanceA, initialRecipientBalanceA + amountARemoved, "Recipient should receive TokenA");
+        assertEq(finalRecipientBalanceB, initialRecipientBalanceB + amountBRemoved, "Recipient should receive TokenB");
+
+        // Check pair balances decreased
+        uint256 finalPairBalanceA = tokenA.balanceOf(pairAddress);
+        uint256 finalPairBalanceB = tokenB.balanceOf(pairAddress);
+        assertEq(finalPairBalanceA, initialPairBalanceA - amountARemoved, "Pair TokenA balance should decrease");
+        assertEq(finalPairBalanceB, initialPairBalanceB - amountBRemoved, "Pair TokenB balance should decrease");
+
+        // Check uniswapV2Swap LP balance decreased
+        uint256 finalSwapLPBalance = pairContract.balanceOf(address(uniswapV2SwapInstance));
+        assertEq(finalSwapLPBalance, 0, "uniswapV2Swap LP balance should be zero");
+
+        console.log("Removed %s TokenA, %s TokenB", amountARemoved / 10 ** 18, amountBRemoved / 10 ** 18);
+        console.log("Liquidity removed successfully");
+    }
 }
