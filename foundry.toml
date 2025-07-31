@@ -1,7 +1,9 @@
 [profile.default]
 libs = ["lib"]
+optimizer = true
 out = "out"
 src = "src"
+via_ir = true
 
 remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts",
