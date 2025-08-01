@@ -103,4 +103,60 @@ contract uniswapV2Swap {
         emit LiquidityRemoved(tokenA, tokenB, _amountA, _amountB, to);
         return (_amountA, _amountB);
     }
+
+    // function to swap tokens
+    function swapTokens(
+        address tokenA,
+        address tokenB,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountOut) {
+        require(tokenA != address(0) && tokenB != address(0), "Invalid token address");
+        require(
+            amountIn > 0 && to != address(0), "Amount must be greater than zero and recipient address must be valid"
+        );
+        require(deadline > block.timestamp, "Deadline must be in the future");
+        address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
+        require(pair != address(0), "Pair does not exist");
+        // Approve the router to spend tokens
+        IERC20(tokenA).approve(address(uniswap_v2_sepolia_router), amountIn);
+        // Swap tokens
+        address[] memory path = new address[](2);
+        path[0] = tokenA;
+        path[1] = tokenB;
+        uint256[] memory amounts =
+            uniswap_v2_sepolia_router.swapExactTokensForTokens(amountIn, amountOutMin, path, to, deadline);
+        amountOut = amounts[1];
+        return amountOut;
+    }
+
+    // swap token for exact tokens
+    function swapTokensForExact(
+        address tokenA,
+        address tokenB,
+        uint256 amountOut,
+        uint256 amountInMax,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountIn) {
+        require(tokenA != address(0) && tokenB != address(0), "Invalid token address");
+        require(
+            amountOut > 0 && to != address(0), "Amount must be greater than zero and recipient address must be valid"
+        );
+        require(deadline > block.timestamp, "Deadline must be in the future");
+        address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
+        require(pair != address(0), "Pair does not exist");
+        // Approve the router to spend tokens
+        IERC20(tokenB).approve(address(uniswap_v2_sepolia_router), amountOut);
+        // Swap tokens
+        address[] memory path = new address[](2);
+        path[0] = tokenB;
+        path[1] = tokenA;
+        uint256[] memory amounts =
+            uniswap_v2_sepolia_router.swapTokensForExactTokens(amountOut, amountInMax, path, to, deadline);
+        amountIn = amounts[0];
+        return amountIn;
+    }
 }
