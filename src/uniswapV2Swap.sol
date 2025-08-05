@@ -56,6 +56,9 @@ contract uniswapV2Swap {
         require(deadline > block.timestamp, "Deadline must be in the future");
         address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
         require(pair != address(0), "Pair does not exist");
+        // Transfer tokens to the contract
+        // IERC20(tokenA).transferFrom(msg.sender, address(this), amountA);
+        // IERC20(tokenB).transferFrom(msg.sender, address(this), amountB);
         // Approve the router to spend tokens
         IERC20(tokenA).approve(address(uniswap_v2_sepolia_router), amountA);
         IERC20(tokenB).approve(address(uniswap_v2_sepolia_router), amountB);
@@ -75,36 +78,26 @@ contract uniswapV2Swap {
     }
 
     // function to remove liquidity from the pair contract
-    function removeLiquidity(address tokenA, address tokenB, address to)
+    function removeLiquidity(address tokenA, address tokenB, uint256 liquidity, address to, uint256 deadline)
         external
         returns (uint256 amountA, uint256 amountB)
     {
         require(tokenA != address(0) && tokenB != address(0), "Invalid token address");
-        uint256 liquidity = IERC20(uniswap_v2_sepolia_factory.getPair(tokenA, tokenB)).balanceOf(msg.sender);
-        uint256 deadline = block.timestamp + 1 hours; // Set a deadline for the transaction
-        require(
-            liquidity > 0 && to != address(0), "Liquidity must be greater than zero and recipient address must be valid"
-        );
+        require(liquidity > 0 && to != address(0), "Liquidity and recipient address must be valid");
         require(deadline > block.timestamp, "Deadline must be in the future");
+
         address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
         require(pair != address(0), "Pair does not exist");
-        // Approve the router to spend LP tokens
-        IERC20(pair).approve(address(uniswap_v2_sepolia_router), liquidity);
-        // Remove liquidity
-        (uint256 _amountA, uint256 _amountB) = uniswap_v2_sepolia_router.removeLiquidity(
-            tokenA,
-            tokenB,
-            liquidity,
-            0, // Min amount A
-            0, // Min amount B
-            to,
-            deadline
-        );
-        emit LiquidityRemoved(tokenA, tokenB, _amountA, _amountB, to);
-        return (_amountA, _amountB);
-    }
 
+        IERC20(pair).transferFrom(msg.sender, address(this), liquidity);
+        IERC20(pair).approve(address(uniswap_v2_sepolia_router), liquidity);
+
+        (amountA, amountB) = uniswap_v2_sepolia_router.removeLiquidity(tokenA, tokenB, liquidity, 0, 0, to, deadline);
+        emit LiquidityRemoved(tokenA, tokenB, amountA, amountB, to);
+        return (amountA, amountB);
+    }
     // function to swap tokens
+
     function swapTokens(
         address tokenA,
         address tokenB,
@@ -120,7 +113,9 @@ contract uniswapV2Swap {
         require(deadline > block.timestamp, "Deadline must be in the future");
         address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
         require(pair != address(0), "Pair does not exist");
-        // Approve the router to spend tokens
+        // Approve the router to spend tokens\
+        // trasfer tokens to the contract
+        IERC20(tokenA).transferFrom(msg.sender, address(this), amountIn);
         IERC20(tokenA).approve(address(uniswap_v2_sepolia_router), amountIn);
         // Swap tokens
         address[] memory path = new address[](2);
@@ -131,6 +126,7 @@ contract uniswapV2Swap {
         amountOut = amounts[1];
         return amountOut;
     }
+    // a/b b/c a a/b b/c path a,b, c
 
     // swap token for exact tokens
     function swapTokensForExact(
@@ -149,6 +145,8 @@ contract uniswapV2Swap {
         address pair = uniswap_v2_sepolia_factory.getPair(tokenA, tokenB);
         require(pair != address(0), "Pair does not exist");
         // Approve the router to spend tokens
+        // Transfer tokens to the contract
+        IERC20(tokenB).transferFrom(msg.sender, address(this), amountInMax);
         IERC20(tokenB).approve(address(uniswap_v2_sepolia_router), amountOut);
         // Swap tokens
         address[] memory path = new address[](2);
